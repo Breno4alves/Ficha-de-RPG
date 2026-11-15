@@ -656,10 +656,26 @@ document.querySelector('.coin-purse').addEventListener('click',e=>{
  if(window.rpgSound)window.rpgSound('coin');
 });
 function statKey(name){return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
+const automaticRacialBonuses={
+ "Humano":{},"Elfo":{"Destreza":1,"Constituição":-1},
+ "Orc":{"Força":1,"Inteligência":-1},"Anão":{"Constituição":1,"Carisma":-1},
+ "Draconato":{"Sabedoria":1,"Destreza":-1},"Halfling":{"Carisma":1,"Constituição":-1},
+ "Tiefling":{"Inteligência":1,"Constituição":-1}
+};
+function racialBonusFor(race,name){return automaticRacialBonuses[race]?.[name]||0;}
+function applyAutomaticRacialBonuses(){
+ const race=$('raceSelect').value;
+ statNames.forEach(name=>{
+  const out=$('racial-'+statKey(name));if(!out)return;
+  out.textContent=racialBonusFor(race,name);
+  updateTotal(name);
+ });
+ updateCombat();updateHero();
+}
 function renderStats(stats,bonuses={}){
   $("stats").innerHTML="";
   statNames.forEach(name=>{
-    const key=statKey(name), base=Number(stats?.[name]??10), bonus=Number(bonuses?.[name]??0);
+    const key=statKey(name), base=Number(stats?.[name]??10), bonus=racialBonusFor($("raceSelect").value,name);
     const el=document.createElement("div");el.className="stat";
     const title=document.createElement("strong");title.textContent=name;el.append(title);
     if(initialAllocation){
@@ -669,14 +685,20 @@ function renderStats(stats,bonuses={}){
       select.addEventListener("change",()=>{refreshAllocationOptions();updateTotal(name);updateHero();});
       el.append(lbl,select);
     }
-    for(const [kind,label,value] of [["base","Atributo base",base],["racial","Bônus racial",bonus]]){
+    for(const [kind,label,value] of [["base","Atributo base",base],["racial","Bônus racial automático",bonus]]){
       const lbl=document.createElement("div");lbl.className="mini-label";lbl.textContent=label;
       const row=document.createElement("div");row.className="counter";
       const minus=document.createElement("button");minus.className="secondary";minus.textContent="−";minus.setAttribute("aria-label","Diminuir "+label+" de "+name);
       const out=document.createElement("output");out.id=kind+"-"+key;out.textContent=value;
       const plus=document.createElement("button");plus.textContent="+";plus.setAttribute("aria-label","Aumentar "+label+" de "+name);
-      minus.onclick=()=>changeStat(name,kind,-1);plus.onclick=()=>changeStat(name,kind,1);
-      row.append(minus,out,plus);if(initialAllocation && kind==="base")row.style.display="none";el.append(lbl,row);
+      if(kind==="racial"){
+        minus.remove();plus.remove();out.title="Modificador automático definido pela raça";
+        row.append(out);
+      }else{
+        minus.onclick=()=>changeStat(name,kind,-1);plus.onclick=()=>changeStat(name,kind,1);
+        row.append(minus,out,plus);
+      }
+      if(initialAllocation && kind==="base")row.style.display="none";el.append(lbl,row);
     }
     const total=document.createElement("div");total.className="total";total.id="stat-"+key;
     const modifier=document.createElement("div");modifier.className="modifier";modifier.id="modifier-"+key;
@@ -767,7 +789,7 @@ function readCharacter(){
   for(const id of ["race","className"]){obj[id]=$(id+"Select").value==="Outro"?$(id).value:$(id+"Select").value;}
   obj.subclass=Number($("level").value)>=3?($("subclassSelect").value==="Outro"?$("subclass").value:$("subclassSelect").value):"";
   obj.magicAffinity=$("magicAffinity").value;obj.customArcaneSubclass=$("customArcaneSubclass").checked;obj.customMartialSubclass=$("customMartialSubclass").checked;
-  statNames.forEach(n=>{const key=statKey(n);obj.stats[n]=initialAllocation?Number($("initial-"+key).value):Number($("base-"+key).textContent);obj.racialBonuses[n]=Number($("racial-"+key).textContent);});
+  statNames.forEach(n=>{const key=statKey(n);obj.stats[n]=initialAllocation?Number($("initial-"+key).value):Number($("base-"+key).textContent);obj.racialBonuses[n]=racialBonusFor($("raceSelect").value,n);});
   obj.initialAllocation=false;
   obj.portrait=currentPortrait;
   obj.level=syncLevel();
@@ -897,6 +919,7 @@ function updateCombat(loading=false){
   updateHero();
 }
 function changeStat(name,kind,delta){
+  if(kind==="racial")return;
   if(initialAllocation&&kind==="base")return;
   const out=$(kind+"-"+statKey(name));
   if(kind==="base"){
@@ -1150,6 +1173,7 @@ function updateHero(){
   for(const [ability,id] of [["Inteligência","heroMagicInt"],["Sabedoria","heroMagicWis"],["Carisma","heroMagicCha"]]){const total=attributeTotal(ability);$(id).textContent=total===null?"—":signed(getModifier(total));}
 
 }
+$("raceSelect").addEventListener("change",applyAutomaticRacialBonuses);
 for(const id of ["raceSelect","race","classNameSelect","className","subclassSelect","subclass","magicAffinity","customArcaneSubclass","customMartialSubclass"])$(id).addEventListener("change",()=>queueMicrotask(updateHero));
 for(const id of ["race","className","subclass"])$(id).addEventListener("input",updateHero);
 for(const id of ["name","hpCurrent","manaCurrent"])$(id).addEventListener("input",updateHero);
