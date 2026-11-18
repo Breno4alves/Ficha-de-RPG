@@ -905,7 +905,7 @@ function updateCombat(loading=false){
   if(intelligence!==null && wisdom!==null){
     const newManaMax=Math.max(0,10+Math.floor((getModifier(intelligence)+getModifier(wisdom))/2));
     $("mana").value=newManaMax;
-    if(loading && initialAllocation)$("manaCurrent").value=newManaMax;
+    if(loading && initialAllocation && ($("manaCurrent").value==="" || !Number.isFinite(Number($("manaCurrent").value))))$("manaCurrent").value=newManaMax;
     else if(!loading){
       const current=Number($("manaCurrent").value)||0;
       $("manaCurrent").value=Math.max(0,Math.min(newManaMax,current+(newManaMax-oldManaMax)));
