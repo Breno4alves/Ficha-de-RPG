@@ -846,7 +846,12 @@ function loadCharacter(c){
   $("experience").value=Math.max(0,xpEarned-Object.values(spentByStat).reduce((a,b)=>a+b,0));
   currentPortrait=c.portrait||"";updatePortrait();
   syncLevel();
-  renderStats(c.stats||{},c.racialBonuses||{});updateCombat(true);refreshSelect();updateHero();$("characterSelect").value=currentId;
+  renderStats(c.stats||{},c.racialBonuses||{});
+  // Restaurar os recursos da ficha selecionada após recalcular atributos e equipamentos.
+  // renderStats pode recalcular a mana usando o máximo do personagem anterior.
+  $("hpCurrent").value=c.hpCurrent??c.hp??0;
+  $("manaCurrent").value=c.manaCurrent??c.mana??0;
+  updateCombat(true);refreshSelect();updateHero();$("characterSelect").value=currentId;
   $("status").textContent="Ficha carregada.";autosaveSuspended=false;try{localStorage.setItem("ryruleLast",currentId)}catch(e){}
 }
 function refreshSelect(){
@@ -886,6 +891,7 @@ function attributeTotal(name){
   return Number(initial||0)+Number($("racial-"+key)?.textContent||0)+equipmentBonus(name);
 }
 function updateCombat(loading=false){
+  if(autosaveSuspended)loading=true;
   if(!$("hp")||!$("base-constituicao"))return;
   const con=attributeTotal("Constituição"), dex=attributeTotal("Destreza"), str=attributeTotal("Força");
   const level=Math.max(1,Math.floor(Number($("level").value)||1));
